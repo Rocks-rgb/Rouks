@@ -4,16 +4,16 @@ import { hashPin, verifyPin } from './auth.js'
 
 const app = document.getElementById('app')
 
-// --- دوال المصادقة (زي ما هي) ---
+// --- دوال المصادقة ---
 function renderLogin() {
   app.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f9fafb;font-family:system-ui;direction:rtl;">
-      <div style="background:white;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-width:400px;width:100%;text-align:center;">
-        <h1 style="color:#2563eb;font-size:28px;margin:0 0 8px;">Rouks</h1>
-        <p style="color:#6b7280;margin:0 0 24px;">أدخل رمز الدخول (PIN)</p>
-        <input id="pin-input" type="password" maxlength="4" placeholder="••••" style="width:100%;text-align:center;font-size:24px;letter-spacing:8px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:16px;outline:none;">
-        <button id="login-btn" style="width:100%;background:#2563eb;color:white;border:none;padding:14px;border-radius:8px;font-size:16px;cursor:pointer;font-weight:bold;">دخول</button>
-        <p id="error-msg" style="color:red;font-size:14px;margin-top:12px;display:none;"></p>
+    <div class="min-h-screen flex items-center justify-center p-6 bg-gray-50 font-sans" dir="rtl">
+      <div class="bg-white rounded-2xl p-8 shadow-lg max-w-sm w-full text-center">
+        <h1 class="text-blue-600 text-3xl font-bold mb-2">Rouks</h1>
+        <p class="text-gray-500 mb-6">أدخل رمز الدخول (PIN)</p>
+        <input id="pin-input" type="password" maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-[10px] p-3 border-2 border-gray-200 rounded-xl mb-4 outline-none focus:border-blue-500 transition">
+        <button id="login-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition">دخول</button>
+        <p id="error-msg" class="text-red-500 text-sm mt-3 hidden"></p>
       </div>
     </div>
   `
@@ -22,12 +22,12 @@ function renderLogin() {
 
 function renderSetup() {
   app.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f9fafb;font-family:system-ui;direction:rtl;">
-      <div style="background:white;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-width:400px;width:100%;text-align:center;">
-        <h1 style="color:#2563eb;font-size:28px;margin:0 0 8px;">أهلاً بك في Rouks</h1>
-        <p style="color:#6b7280;margin:0 0 24px;">أنشئ رمز دخول (4 أرقام) لحماية بياناتك</p>
-        <input id="pin-input" type="password" maxlength="4" placeholder="••••" style="width:100%;text-align:center;font-size:24px;letter-spacing:8px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:16px;outline:none;">
-        <button id="setup-btn" style="width:100%;background:#2563eb;color:white;border:none;padding:14px;border-radius:8px;font-size:16px;cursor:pointer;font-weight:bold;">إنشاء وحفظ</button>
+    <div class="min-h-screen flex items-center justify-center p-6 bg-gray-50 font-sans" dir="rtl">
+      <div class="bg-white rounded-2xl p-8 shadow-lg max-w-sm w-full text-center">
+        <h1 class="text-blue-600 text-3xl font-bold mb-2">أهلاً بك</h1>
+        <p class="text-gray-500 mb-6">أنشئ رمز دخول (4 أرقام) لحماية بياناتك</p>
+        <input id="pin-input" type="password" maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-[10px] p-3 border-2 border-gray-200 rounded-xl mb-4 outline-none focus:border-blue-500 transition">
+        <button id="setup-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition">إنشاء وحفظ</button>
       </div>
     </div>
   `
@@ -50,31 +50,36 @@ async function handleLogin() {
     renderChat()
   } else {
     err.textContent = 'رمز الدخول غلط، جرب تاني'
-    err.style.display = 'block'
+    err.classList.remove('hidden')
   }
 }
 
-// --- واجهة الشات الجديدة ---
+// --- واجهة الشات المطورة ---
 function renderChat() {
   app.innerHTML = `
-    <div style="display:flex;flex-direction:column;height:100vh;background:#f3f4f6;font-family:system-ui;direction:rtl;">
+    <div class="flex flex-col h-screen bg-gray-50 font-sans" dir="rtl">
       <!-- الهيدر -->
-      <div style="background:#2563eb;color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;">
-        <h1 style="margin:0;font-size:20px;">Rouks AI</h1>
-        <button id="logout-btn" style="background:#ef4444;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;">خروج</button>
-      </div>
+      <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold text-xl shadow-sm">R</div>
+          <h1 class="text-xl font-bold m-0">Rouks AI</h1>
+        </div>
+        <button id="logout-btn" class="bg-blue-700 hover:bg-blue-800 text-sm px-4 py-2 rounded-lg transition">خروج</button>
+      </header>
       
       <!-- منطقة الرسائل -->
-      <div id="chat-box" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;">
-        <div style="background:white;padding:12px;border-radius:8px;max-width:80%;align-self:flex-start;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      <main id="chat-box" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-24">
+        <div class="bg-white text-gray-800 p-4 rounded-2xl rounded-tr-none shadow-sm self-start max-w-[85%] border border-gray-100">
           أهلاً بيك! أنا Rouks، مساعدك الشخصي. اكتب أي حاجة وأنا هرد عليك.
         </div>
-      </div>
+      </main>
 
-      <!-- صندوق الكتابة -->
-      <div style="background:white;padding:16px;display:flex;gap:8px;border-top:1px solid #e5e7eb;">
-        <input id="msg-input" type="text" placeholder="اكتب رسالتك هنا..." style="flex:1;padding:12px;border:1px solid #d1d5db;border-radius:8px;outline:none;font-size:16px;">
-        <button id="send-btn" style="background:#2563eb;color:white;border:none;padding:0 20px;border-radius:8px;font-weight:bold;cursor:pointer;">إرسال</button>
+      <!-- صندوق الكتابة (ثابت تحت) -->
+      <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 flex gap-2 items-center">
+        <input id="msg-input" type="text" placeholder="اكتب رسالتك هنا..." class="flex-1 bg-gray-100 border-none rounded-full px-5 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 transition text-base">
+        <button id="send-btn" class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md hover:bg-blue-700 transition">
+          <svg class="w-5 h-5 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+        </button>
       </div>
     </div>
   `
@@ -85,37 +90,53 @@ function renderChat() {
   const sendBtn = document.getElementById('send-btn')
   const chatBox = document.getElementById('chat-box')
 
-  // إرسال عند الضغط على Enter
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage()
-  })
-  sendBtn.addEventListener('click', sendMessage)
+  // ذاكرة المحادثة (عشان الذكاء الاصطناعي يفتكر اللي قبله)
+  let chatHistory = [
+    { role: 'system', content: 'أنت مساعد شخصي اسمك Rouks. بتتكلم بالعربي السوداني البسيط، وشرحك واضح ومباشر بدون مجاملة. خليك عملي.' }
+  ]
+
+  function addMessageToUI(role, text) {
+    const isUser = role === 'user'
+    const bubble = document.createElement('div')
+    bubble.className = isUser 
+      ? "bg-blue-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm self-end max-w-[85%] whitespace-pre-wrap" 
+      : "bg-white text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm self-start max-w-[85%] border border-gray-100 whitespace-pre-wrap"
+    
+    bubble.textContent = text
+    chatBox.appendChild(bubble)
+    chatBox.scrollTop = chatBox.scrollHeight
+    return bubble
+  }
+
+  function showTyping() {
+    const typing = document.createElement('div')
+    typing.id = 'typing-indicator'
+    typing.className = "bg-white text-gray-500 p-4 rounded-2xl rounded-tl-none shadow-sm self-start flex gap-1 border border-gray-100 items-center"
+    typing.innerHTML = `
+      <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+      <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+      <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+    `
+    chatBox.appendChild(typing)
+    chatBox.scrollTop = chatBox.scrollHeight
+    return typing
+  }
 
   async function sendMessage() {
     const text = input.value.trim()
     if (!text) return
 
-    // 1. عرض رسالة المستخدم
-    chatBox.innerHTML += `
-      <div style="background:#2563eb;color:white;padding:12px;border-radius:8px;max-width:80%;align-self:flex-end;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-        ${text}
-      </div>
-    `
+    // 1. عرض رسالة المستخدم وإضافتها للذاكرة
+    addMessageToUI('user', text)
     input.value = ''
-    chatBox.scrollTop = chatBox.scrollHeight
+    chatHistory.push({ role: 'user', content: text })
 
-    // 2. رسالة "جاري التفكير..."
-    const loadingId = 'loading-' + Date.now()
-    chatBox.innerHTML += `
-      <div id="${loadingId}" style="background:white;padding:12px;border-radius:8px;max-width:80%;align-self:flex-start;box-shadow:0 1px 3px rgba(0,0,0,0.1);color:#6b7280;">
-        جاري التفكير... ⏳
-      </div>
-    `
-    chatBox.scrollTop = chatBox.scrollHeight
+    // 2. تعطيل الإرسال وعرض مؤشر الكتابة
+    sendBtn.disabled = true
+    sendBtn.classList.add('opacity-50')
+    const typingIndicator = showTyping()
 
     try {
-      // 3. الاتصال بـ Groq API
-      // ⚠️ هنسألك المفتاح بتاعك أول مرة وتخزنه في المتصفح
       let apiKey = localStorage.getItem('groq_api_key')
       if (!apiKey) {
         apiKey = prompt('لو سمحت انسخ ولصق مفتاح Groq API هنا (يبدأ بـ gsk_):')
@@ -123,10 +144,12 @@ function renderChat() {
       }
 
       if (!apiKey) {
-        document.getElementById(loadingId).innerHTML = 'عذراً، مفيش مفتاح API. امسح بيانات الموقع وجرب تاني.'
+        typingIndicator.remove()
+        addMessageToUI('assistant', 'عذراً، مفيش مفتاح API. امسح بيانات الموقع وجرب تاني.')
         return
       }
 
+      // إرسال الذاكرة كاملة للـ API
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -135,43 +158,38 @@ function renderChat() {
         },
         body: JSON.stringify({
           model: 'openai/gpt-oss-20b',
-          messages: [
-            { role: 'system', content: 'أنت مساعد شخصي اسمك Rouks. بتتكلم بالعربي السوداني البسيط، وشرحك واضح ومباشر بدون مجاملة.' },
-            { role: 'user', content: text }
-          ]
+          messages: chatHistory
         })
       })
 
       const data = await response.json()
+      typingIndicator.remove()
 
-      // إزالة رسالة التحميل
-      document.getElementById(loadingId).remove()
+      if (data.error) throw new Error(data.error.message || 'مشكلة في الاتصال')
 
-      if (data.error) {
-        throw new Error(data.error.message || 'مشكلة في الاتصال بـ Groq')
-      }
-
-      // 4. عرض رد الذكاء الاصطناعي
+      // 3. عرض رد الذكاء الاصطناعي وإضافته للذاكرة
       const reply = data.choices[0].message.content
-      chatBox.innerHTML += `
-        <div style="background:white;padding:12px;border-radius:8px;max-width:80%;align-self:flex-start;box-shadow:0 1px 3px rgba(0,0,0,0.1);white-space:pre-wrap;">
-          ${reply}
-        </div>
-      `
+      addMessageToUI('assistant', reply)
+      chatHistory.push({ role: 'assistant', content: reply })
       
-      // حفظ المحادثة في IndexedDB (اختياري حالياً، هنطوره بعدين)
+      // حفظ في قاعدة البيانات
       await db.conversations.add({ title: text.substring(0, 20), createdAt: new Date() })
       
     } catch (error) {
-      document.getElementById(loadingId).remove()
-      chatBox.innerHTML += `
-        <div style="background:#fee2e2;color:#b91c1c;padding:12px;border-radius:8px;max-width:80%;align-self:flex-start;">
-          ❌ خطأ: ${error.message}
-        </div>
-      `
+      typingIndicator.remove()
+      addMessageToUI('assistant', `❌ خطأ: ${error.message}`)
+    } finally {
+      // إعادة تفعيل زرار الإرسال
+      sendBtn.disabled = false
+      sendBtn.classList.remove('opacity-50')
+      chatBox.scrollTop = chatBox.scrollHeight
     }
-    chatBox.scrollTop = chatBox.scrollHeight
   }
+
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage()
+  })
+  sendBtn.addEventListener('click', sendMessage)
 }
 
 // التشغيل الأولي
@@ -179,4 +197,4 @@ if (!localStorage.getItem('rouks_pin_hash')) {
   renderSetup()
 } else {
   renderLogin()
-}
+                                          }

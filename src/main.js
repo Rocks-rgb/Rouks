@@ -83,17 +83,18 @@ function renderChat() {
       
       <main id="chat-box" style="${style.chatBox}">
         <div style="${style.aiBubble}">
-          أهلاً بيك! أنا Rouks. تقدر تسألني أي حاجة، أو تدوس على زرار البحث (🌐) عشان أدور لك في ويكيبيديا.
+          أهلاً بيك! أنا Rouks. تقدر تسألني، تدوس 📚 عشان أدور لك في الكتب والأبحاث، أو تدوس 🌐 عشان أدور في ويكيبيديا.
         </div>
       </main>
 
       <div style="${style.inputArea}">
-        <label for="file-upload" style="${style.toolBtn}">
+        <label for="file-upload" style="${style.toolBtn}" title="رفع صورة">
           📎
           <input id="file-upload" type="file" accept="image/*" style="display:none;">
         </label>
         
-        <button id="search-btn" style="${style.toolBtn}" title="البحث في ويكيبيديا">🌐</button>
+        <button id="search-wiki-btn" style="${style.toolBtn}" title="البحث في ويكيبيديا">🌐</button>
+        <button id="search-books-btn" style="${style.toolBtn}" title="البحث في الكتب والأبحاث">📚</button>
 
         <input id="msg-input" type="text" placeholder="اكتب رسالتك هنا..." style="${style.input}">
         <button id="send-btn" style="${style.btn}">➤</button>
@@ -101,19 +102,20 @@ function renderChat() {
     </div>
   `
 
-  document.getElementById('logout-btn')?.addEventListener('click', renderLogin)
   const input = document.getElementById('msg-input')
   const sendBtn = document.getElementById('send-btn')
   const chatBox = document.getElementById('chat-box')
   const modelSelect = document.getElementById('model-select')
   const fileUpload = document.getElementById('file-upload')
-  const searchBtn = document.getElementById('search-btn')
+  const searchWikiBtn = document.getElementById('search-wiki-btn')
+  const searchBooksBtn = document.getElementById('search-books-btn')
 
   let chatHistory = [
     { role: 'system', content: 'أنت مساعد شخصي اسمك Rouks. بتتكلم بالعربي السوداني البسيط، وشرحك واضح ومباشر بدون مجاملة. خليك عملي.' }
   ]
   let currentImageBase64 = null;
 
+  // --- رفع الصور ---
   fileUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -128,44 +130,100 @@ function renderChat() {
   });
 
   // --- مهارة البحث في ويكيبيديا ---
-  searchBtn.addEventListener('click', async () => {
+  searchWikiBtn.addEventListener('click', async () => {
     const query = input.value.trim();
-    if (!query) return alert("اكتب كلمة تبحث عنها في الخانة أولاً، وبعدين دوس على زرار البحث 🌐");
-    
+    if (!query) return alert("اكتب كلمة تبحث عنها أولاً.");
     input.value = '';
-    addMessageToUI('user', `🔍 ابحث لي عن: ${query}`);
+    addMessageToUI('user', `🌐 ابحث في ويكيبيديا عن: ${query}`);
     sendBtn.disabled = true;
     const typingIndicator = showTyping("جاري البحث في ويكيبيديا...");
 
     try {
-      // استخدام API ويكيبيديا العربي
       const wikiUrl = `https://ar.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
       const res = await fetch(wikiUrl);
       const data = await res.json();
-      
       typingIndicator.remove();
 
-      if (data.query.search.length === 0) {
-        addMessageToUI('assistant', `مفيش نتائج في ويكيبيديا عن "${query}".`);
-        return;
-      }
+      if (data.query.search.length === 0) return addMessageToUI('assistant', `مفيش نتائج في ويكيبيديا عن "${query}".`);
 
-      // أخذ أفضل نتيجة
-      const topResult = data.query.search[0];
-      const snippet = topResult.snippet.replace(/<[^>]+>/g, ''); // مسح أكواد HTML
-      
-      // إضافة نتيجة البحث لذاكرة الذكاء الاصطناعي عشان يلخصها
+      const snippet = data.query.search[0].snippet.replace(/<[^>]+>/g, '');
       chatHistory.push({ role: 'user', content: `معلومات من ويكيبيديا عن "${query}":\n${snippet}\n\nلخص لي هذه المعلومات بأسلوبك.` });
       
       const aiTyping = showTyping("بلخص المعلومات...");
-      
       let apiKey = localStorage.getItem('groq_api_key');
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: modelSelect.value, messages: chatHistory })
       });
+      const aiData = await response.json();
+      aiTyping.remove();
+      
+      const reply = aiData.choices[0].message.content;
+      addMessageToUI('assistant', reply);
+      chatHistory.push({ role: 'assistant', content: reply });
+    } catch (error) {
+      typingIndicator.remove();
+      addMessageToUI('assistant', `❌ فشل البحث: ${error.message}`);
+    } finally {
+      sendBtn.disabled = false;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  });
 
+  // --- مهارة البحث في الكتب والأبحاث (Open Library + OpenAlex) ---
+  searchBooksBtn.addEventListener('click', async () => {
+    const query = input.value.trim();
+    if (!query) return alert("اكتب اسم الكتاب أو موضوع البحث في الخانة أولاً، وبعدين دوس على الزرار 📚.");
+
+    // نسأل المستخدم يختار النوع
+    const type = prompt("عايز تبحث في إيه؟ اكتب 'كتب' أو 'أبحاث':", "أبحاث");
+    if (!type) return;
+    if (!['كتب', 'أبحاث'].includes(type)) return alert("اختيار غير صحيح. لازم تكتب 'كتب' أو 'أبحاث'.");
+
+    input.value = '';
+    const searchLabel = type === 'كتب' ? 'كتب' : 'أبحاث';
+    addMessageToUI('user', `📚 ابحث في ${searchLabel} عن: ${query}`);
+    
+    sendBtn.disabled = true;
+    const typingIndicator = showTyping(`جاري البحث في ${searchLabel}...`);
+
+    try {
+      let resultText = "";
+      let apiUrl = "";
+
+      if (type === 'كتب') {
+        // Open Library API
+        apiUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1`;
+      } else {
+        // OpenAlex API (أبحاث)
+        apiUrl = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=1`;
+      }
+
+      const res = await fetch(apiUrl);
+      const data = await res.json();
+      typingIndicator.remove();
+
+      if (type === 'كتب') {
+        if (!data.docs || data.docs.length === 0) return addMessageToUI('assistant', `مفيش نتائج في Open Library عن "${query}".`);
+        const book = data.docs[0];
+        const authors = book.author_name ? book.author_name.join('، ') : 'غير معروف';
+        resultText = `عنوان الكتاب: ${book.title}\nالمؤلف: ${authors}\nسنة النشر: ${book.first_publish_year || 'غير معروفة'}`;
+      } else {
+        if (!data.results || data.results.length === 0) return addMessageToUI('assistant', `مفيش نتائج في OpenAlex عن "${query}".`);
+        const paper = data.results[0];
+        const authors = paper.authorships ? paper.authorships.map(a => a.author.display_name).join('، ') : 'غير معروف';
+        resultText = `عنوان البحث: ${paper.title}\nالمؤلفون: ${authors}\nسنة النشر: ${paper.publication_year || 'غير معروفة'}\nعدد الاقتباسات: ${paper.cited_by_count}`;
+        // ملاحظة: OpenAlex بيرجع الملخص كـ "فهرس معكوس"، بنتجاهله هنا للتبسيط عشان الذكاء الاصطناعي يعتمد على العنوان والمؤلفين.
+      }
+
+      chatHistory.push({ role: 'user', content: `معلومات من ${type === 'كتب' ? 'Open Library' : 'OpenAlex'} عن "${query}":\n${resultText}\n\nلخص لي هذه المعلومات بأسلوبك المفيد.` });
+      
+      const aiTyping = showTyping("بلخص المعلومات...");
+      let apiKey = localStorage.getItem('groq_api_key');
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: modelSelect.value, messages: chatHistory })
+      });
       const aiData = await response.json();
       aiTyping.remove();
       
@@ -214,13 +272,12 @@ function renderChat() {
   async function sendMessage() {
     const text = input.value.trim()
     if (!text && !currentImageBase64) return
-
     addMessageToUI('user', text || 'ما رأيك في هذه الصورة؟', currentImageBase64)
+    
     let messageContent = [];
     if (text) messageContent.push({ type: "text", text: text });
     else messageContent.push({ type: "text", text: "حلل هذه الصورة" });
     if (currentImageBase64) messageContent.push({ type: "image_url", image_url: { url: currentImageBase64 } });
-
     chatHistory.push({ role: 'user', content: currentImageBase64 ? messageContent : text })
 
     const sentImage = currentImageBase64;
@@ -245,8 +302,7 @@ function renderChat() {
       if (sentImage) selectedModel = 'llama-3.2-11b-vision-preview';
 
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: selectedModel, messages: chatHistory })
       })
 

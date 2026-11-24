@@ -1,0 +1,9 @@
+{
+  "name": "Rouks",
+  "short_name": "Rouks",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

@@ -4,7 +4,6 @@ import { hashPin, verifyPin } from './auth.js'
 
 const app = document.getElementById('app')
 
-// --- ستايلات موحدة ---
 const style = {
   container: "min-height:100vh; display:flex; flex-direction:column; background:#f3f4f6; font-family:system-ui, sans-serif; direction:rtl; margin:0;",
   header: "background:#2563eb; color:white; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.1); position:fixed; top:0; left:0; right:0; z-index:10;",
@@ -17,6 +16,7 @@ const style = {
   toolBtn: "background:#e5e7eb; color:#4b5563; border:none; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; flex-shrink:0;"
 }
 
+// ... (دوال المصادقة renderLogin, renderSetup, handleLogin زي ما هي) ...
 function renderLogin() {
   app.innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f9fafb;font-family:system-ui;direction:rtl;">
@@ -74,29 +74,21 @@ function renderChat() {
           <div style="width:36px; height:36px; background:white; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#2563eb; font-weight:bold; font-size:18px;">R</div>
           <h1 style="margin:0; font-size:18px;">Rouks AI</h1>
         </div>
-        
         <select id="model-select" style="background:#1e40af; color:white; border:1px solid #3b82f6; padding:6px 10px; border-radius:8px; font-size:12px; outline:none;">
           <option value="llama-3.1-8b-instant">⚡ خفيف وسريع</option>
           <option value="llama-3.3-70b-versatile" selected>🧠 ثقيل وذكي</option>
         </select>
       </header>
-      
       <main id="chat-box" style="${style.chatBox}">
         <div style="${style.aiBubble}">
-          أهلاً بيك! أنا Rouks. تقدر تسألني، تدوس 📚 عشان أدور لك في الكتب والأبحاث، أو تدوس 🌐 عشان أدور في ويكيبيديا.
+          أهلاً بيك! أنا Rouks. تقدر تكتب بالعامية أو الفرانكو (مثلاً: عايز بحث عن el 7ob)، وأنا هصلح الكلمة وأبحث لك.
         </div>
       </main>
-
       <div style="${style.inputArea}">
-        <label for="file-upload" style="${style.toolBtn}" title="رفع صورة">
-          📎
-          <input id="file-upload" type="file" accept="image/*" style="display:none;">
-        </label>
-        
+        <label for="file-upload" style="${style.toolBtn}" title="رفع صورة">📎<input id="file-upload" type="file" accept="image/*" style="display:none;"></label>
         <button id="search-wiki-btn" style="${style.toolBtn}" title="البحث في ويكيبيديا">🌐</button>
         <button id="search-books-btn" style="${style.toolBtn}" title="البحث في الكتب والأبحاث">📚</button>
-
-        <input id="msg-input" type="text" placeholder="اكتب رسالتك هنا..." style="${style.input}">
+        <input id="msg-input" type="text" placeholder="اكتب بالعامية أو الفرانكو..." style="${style.input}">
         <button id="send-btn" style="${style.btn}">➤</button>
       </div>
     </div>
@@ -115,6 +107,37 @@ function renderChat() {
   ]
   let currentImageBase64 = null;
 
+  // 🧠 دالة المترجم الذكي: تصلح الأخطاء وتحول العامية والفرانكو لكلمة بحث دقيقة
+  async function optimizeSearchQuery(rawText, apiKey) {
+    const prompt = `أنت خبير في معالجة اللغات (NLP). المستخدم يكتب بالعامية السودانية، أو بكلمات إنجليزية مكتوبة بحروف عربية (Franco-Arabic)، أو فيه أخطاء إملائية.
+مهمتك: استخرج الكلمة المفتاحية الصحيحة باللغة العربية الفصحى أو الإنجليزية (حسب الأنسب للبحث في ويكيبيديا أو قواعد البيانات العلمية).
+أمثلة:
+- "عايز ابحث عن الاقتصاد" -> "الاقتصاد"
+- "el 7ob fel soodan" -> "الحب في السودان"
+- "مقدمه بن خلدون" -> "مقدمة ابن خلدون"
+- "ai in medicine" -> "Artificial Intelligence in Medicine"
+اكتب فقط الكلمة المفتاحية النهائية للبحث، بدون أي مقدمات أو علامات ترقيم.
+نص المستخدم: "${rawText}"`;
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          model: 'llama-3.1-8b-instant', // نستخدم الموديل السريع عشان التصحيح يكون لحظي
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.1 // درجة حرارة منخفضة عشان يكون دقيق
+        })
+      });
+      const data = await response.json();
+      let optimized = data.choices[0].message.content.trim();
+      // تنظيف النتيجة من أي علامات تنصيص
+      optimized = optimized.replace(/['"]/g, '');
+      return optimized;
+    } catch (e) {
+      return rawText; // لو فشل التصحيح، نبحث بالنص الأصلي
+    }
+  }
+
   // --- رفع الصور ---
   fileUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -129,28 +152,42 @@ function renderChat() {
     reader.readAsDataURL(file);
   });
 
-  // --- مهارة البحث في ويكيبيديا ---
+  // --- مهارة البحث في ويكيبيديا (بعد التصحيح) ---
   searchWikiBtn.addEventListener('click', async () => {
-    const query = input.value.trim();
-    if (!query) return alert("اكتب كلمة تبحث عنها أولاً.");
+    const rawQuery = input.value.trim();
+    if (!rawQuery) return alert("اكتب كلمة تبحث عنها أولاً.");
+    
+    let apiKey = localStorage.getItem('groq_api_key');
+    if (!apiKey) {
+        apiKey = prompt('لو سمحت انسخ ولصق مفتاح Groq API هنا:');
+        if (apiKey) localStorage.setItem('groq_api_key', apiKey.trim());
+        else return;
+    }
+
     input.value = '';
-    addMessageToUI('user', `🌐 ابحث في ويكيبيديا عن: ${query}`);
+    addMessageToUI('user', `🌐 (بحث ذكي) عن: ${rawQuery}`);
     sendBtn.disabled = true;
-    const typingIndicator = showTyping("جاري البحث في ويكيبيديا...");
+    
+    const typingIndicator = showTyping("جاري فهم الكلمة وتصحيحها...");
 
     try {
-      const wikiUrl = `https://ar.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+      // 1. تصحيح الكلمة بالذكاء الاصطناعي
+      const optimizedQuery = await optimizeSearchQuery(rawQuery, apiKey);
+      
+      typingIndicator.innerHTML = `<span style="color:#6b7280; font-style:italic;">جاري البحث في ويكيبيديا عن: "${optimizedQuery}"...</span>`;
+
+      // 2. البحث بالكلمة المصححة
+      const wikiUrl = `https://ar.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(optimizedQuery)}&format=json&origin=*`;
       const res = await fetch(wikiUrl);
       const data = await res.json();
       typingIndicator.remove();
 
-      if (data.query.search.length === 0) return addMessageToUI('assistant', `مفيش نتائج في ويكيبيديا عن "${query}".`);
+      if (data.query.search.length === 0) return addMessageToUI('assistant', `مفيش نتائج في ويكيبيديا حتى بعد تصحيح الكلمة إلى "${optimizedQuery}".`);
 
       const snippet = data.query.search[0].snippet.replace(/<[^>]+>/g, '');
-      chatHistory.push({ role: 'user', content: `معلومات من ويكيبيديا عن "${query}":\n${snippet}\n\nلخص لي هذه المعلومات بأسلوبك.` });
+      chatHistory.push({ role: 'user', content: `معلومات من ويكيبيديا عن "${optimizedQuery}":\n${snippet}\n\nلخص لي هذه المعلومات بأسلوبك.` });
       
       const aiTyping = showTyping("بلخص المعلومات...");
-      let apiKey = localStorage.getItem('groq_api_key');
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: modelSelect.value, messages: chatHistory })
@@ -170,56 +207,53 @@ function renderChat() {
     }
   });
 
-  // --- مهارة البحث في الكتب والأبحاث (Open Library + OpenAlex) ---
+  // --- مهارة البحث في الكتب والأبحاث (بعد التصحيح) ---
   searchBooksBtn.addEventListener('click', async () => {
-    const query = input.value.trim();
-    if (!query) return alert("اكتب اسم الكتاب أو موضوع البحث في الخانة أولاً، وبعدين دوس على الزرار 📚.");
+    const rawQuery = input.value.trim();
+    if (!rawQuery) return alert("اكتب اسم الكتاب أو موضوع البحث في الخانة أولاً.");
 
-    // نسأل المستخدم يختار النوع
     const type = prompt("عايز تبحث في إيه؟ اكتب 'كتب' أو 'أبحاث':", "أبحاث");
-    if (!type) return;
-    if (!['كتب', 'أبحاث'].includes(type)) return alert("اختيار غير صحيح. لازم تكتب 'كتب' أو 'أبحاث'.");
+    if (!type || !['كتب', 'أبحاث'].includes(type)) return alert("اختيار غير صحيح.");
+
+    let apiKey = localStorage.getItem('groq_api_key');
+    if (!apiKey) return;
 
     input.value = '';
     const searchLabel = type === 'كتب' ? 'كتب' : 'أبحاث';
-    addMessageToUI('user', `📚 ابحث في ${searchLabel} عن: ${query}`);
+    addMessageToUI('user', `📚 (بحث ذكي في ${searchLabel}) عن: ${rawQuery}`);
     
     sendBtn.disabled = true;
-    const typingIndicator = showTyping(`جاري البحث في ${searchLabel}...`);
+    const typingIndicator = showTyping("جاري فهم وتصحيح الكلمة...");
 
     try {
-      let resultText = "";
-      let apiUrl = "";
+      // 1. تصحيح الكلمة
+      const optimizedQuery = await optimizeSearchQuery(rawQuery, apiKey);
+      typingIndicator.innerHTML = `<span style="color:#6b7280; font-style:italic;">جاري البحث في ${searchLabel} عن: "${optimizedQuery}"...</span>`;
 
-      if (type === 'كتب') {
-        // Open Library API
-        apiUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1`;
-      } else {
-        // OpenAlex API (أبحاث)
-        apiUrl = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=1`;
-      }
+      let resultText = "";
+      let apiUrl = type === 'كتب' 
+        ? `https://openlibrary.org/search.json?q=${encodeURIComponent(optimizedQuery)}&limit=1`
+        : `https://api.openalex.org/works?search=${encodeURIComponent(optimizedQuery)}&per-page=1`;
 
       const res = await fetch(apiUrl);
       const data = await res.json();
       typingIndicator.remove();
 
       if (type === 'كتب') {
-        if (!data.docs || data.docs.length === 0) return addMessageToUI('assistant', `مفيش نتائج في Open Library عن "${query}".`);
+        if (!data.docs || data.docs.length === 0) return addMessageToUI('assistant', `مفيش نتائج في Open Library عن "${optimizedQuery}".`);
         const book = data.docs[0];
         const authors = book.author_name ? book.author_name.join('، ') : 'غير معروف';
         resultText = `عنوان الكتاب: ${book.title}\nالمؤلف: ${authors}\nسنة النشر: ${book.first_publish_year || 'غير معروفة'}`;
       } else {
-        if (!data.results || data.results.length === 0) return addMessageToUI('assistant', `مفيش نتائج في OpenAlex عن "${query}".`);
+        if (!data.results || data.results.length === 0) return addMessageToUI('assistant', `مفيش نتائج في OpenAlex عن "${optimizedQuery}".`);
         const paper = data.results[0];
         const authors = paper.authorships ? paper.authorships.map(a => a.author.display_name).join('، ') : 'غير معروف';
         resultText = `عنوان البحث: ${paper.title}\nالمؤلفون: ${authors}\nسنة النشر: ${paper.publication_year || 'غير معروفة'}\nعدد الاقتباسات: ${paper.cited_by_count}`;
-        // ملاحظة: OpenAlex بيرجع الملخص كـ "فهرس معكوس"، بنتجاهله هنا للتبسيط عشان الذكاء الاصطناعي يعتمد على العنوان والمؤلفين.
       }
 
-      chatHistory.push({ role: 'user', content: `معلومات من ${type === 'كتب' ? 'Open Library' : 'OpenAlex'} عن "${query}":\n${resultText}\n\nلخص لي هذه المعلومات بأسلوبك المفيد.` });
+      chatHistory.push({ role: 'user', content: `معلومات من ${type === 'كتب' ? 'Open Library' : 'OpenAlex'} عن "${optimizedQuery}":\n${resultText}\n\nلخص لي هذه المعلومات بأسلوبك المفيد.` });
       
       const aiTyping = showTyping("بلخص المعلومات...");
-      let apiKey = localStorage.getItem('groq_api_key');
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: modelSelect.value, messages: chatHistory })
@@ -292,10 +326,6 @@ function renderChat() {
 
     try {
       let apiKey = localStorage.getItem('groq_api_key')
-      if (!apiKey) {
-        apiKey = prompt('لو سمحت انسخ ولصق مفتاح Groq API هنا (يبدأ بـ gsk_):')
-        if (apiKey) localStorage.setItem('groq_api_key', apiKey.trim())
-      }
       if (!apiKey) return addMessageToUI('assistant', 'عذراً، مفيش مفتاح API.')
 
       let selectedModel = modelSelect.value;

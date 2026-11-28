@@ -1,17 +1,17 @@
 import './style.css'
 import { db } from './db/index.js'
 import { hashPin, verifyPin } from './auth.js'
+// استيراد مكتبات التنسيق والحماية من CDN (مجانية ومفتوحة المصدر)
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js'
+import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify/dist/purify.es.mjs'
 
-// ==========================================
-// 1. الإعدادات والثوابت (Constants)
-// ==========================================
 const app = document.getElementById('app')
 if (!app) throw new Error('Critical: #app element not found')
 
 const WORKER_URL = 'https://rouk-proxy.am1558272.workers.dev'.replace(/\/+$/, '')
 
 const MAX_MESSAGE_LENGTH = 4000
-const MAX_CONTEXT_MESSAGES = 6 // تم تقليصها لتوفير الحصة
+const MAX_CONTEXT_MESSAGES = 6
 const MAX_SAVED_MESSAGES = 300
 const MAX_DISPLAYED_MESSAGES = 50
 
@@ -25,15 +25,27 @@ const SYSTEM_MESSAGE = {
   content: 'أنت مساعد شخصي اسمك Rouks. تتحدث بالعربية السودانية البسيطة. إجابتك واضحة ومباشرة ومفيدة.'
 }
 
-// ==========================================
-// 2. الأنماط (Styles)
-// ==========================================
+// إضافة ستايلات لـ Markdown عشان الأكواد تظهر بشكل نظيف
+const mdStyles = document.createElement('style')
+mdStyles.textContent = `
+  .markdown-content pre { background: #1e293b; color: #f8fafc; padding: 12px; border-radius: 8px; overflow-x: auto; direction: ltr; text-align: left; margin: 8px 0; font-size: 14px; }
+  .markdown-content code { font-family: monospace; background: #e2e8f0; color: #b91c1c; padding: 2px 4px; border-radius: 4px; direction: ltr; display: inline-block; font-size: 14px; }
+  .markdown-content pre code { background: transparent; color: inherit; padding: 0; display: block; }
+  .markdown-content p { margin: 0 0 8px 0; line-height: 1.6; }
+  .markdown-content p:last-child { margin-bottom: 0; }
+  .markdown-content ul, .markdown-content ol { padding-right: 20px; margin: 0 0 8px 0; }
+  .markdown-content li { margin-bottom: 4px; }
+  .markdown-content strong { font-weight: 700; }
+  .markdown-content h1, .markdown-content h2, .markdown-content h3 { margin: 12px 0 8px 0; font-weight: bold; }
+`
+document.head.appendChild(mdStyles)
+
 const style = {
   container: 'min-height:100vh;display:flex;flex-direction:column;background:#f3f4f6;font-family:system-ui,sans-serif;direction:rtl;margin:0;',
   header: 'background:#2563eb;color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 4px rgba(0,0,0,.1);position:fixed;top:0;left:0;right:0;z-index:10;',
   chatBox: 'flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;padding-top:80px;padding-bottom:90px;',
   userBubble: 'background:#2563eb;color:white;padding:12px 16px;border-radius:16px 16px 0 16px;max-width:85%;align-self:flex-end;box-shadow:0 1px 2px rgba(0,0,0,.1);white-space:pre-wrap;overflow-wrap:anywhere;',
-  aiBubble: 'background:white;color:#1f2937;padding:12px 16px;border-radius:16px 16px 16px 0;max-width:85%;align-self:flex-start;box-shadow:0 1px 2px rgba(0,0,0,.1);border:1px solid #e5e7eb;white-space:pre-wrap;overflow-wrap:anywhere;',
+  aiBubble: 'background:white;color:#1f2937;padding:12px 16px;border-radius:16px 16px 16px 0;max-width:85%;align-self:flex-start;box-shadow:0 1px 2px rgba(0,0,0,.1);border:1px solid #e5e7eb;overflow-wrap:anywhere;',
   inputArea: 'position:fixed;bottom:0;left:0;right:0;background:white;padding:10px 12px;display:flex;gap:6px;border-top:1px solid #e5e7eb;align-items:center;',
   inputWrapper: 'flex:1;display:flex;align-items:center;background:#f9fafb;border-radius:24px;border:1px solid #d1d5db;padding:0 10px;min-width:0;',
   input: 'flex:1;padding:12px 5px;border:none;outline:none;font-size:16px;background:transparent;min-width:0;',
@@ -43,9 +55,6 @@ const style = {
   logoutBtn: 'background:#1e40af;color:white;border:1px solid #3b82f6;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:12px;'
 }
 
-// ==========================================
-// 3. دوال المساعدة (Helpers)
-// ==========================================
 function isValidPin(pin) {
   return /^[0-9]{4}$/.test(pin)
 }
@@ -83,9 +92,6 @@ async function postJson(path, payload, timeoutMs = 60000) {
   }
 }
 
-// ==========================================
-// 4. واجهات المصادقة (Auth UI)
-// ==========================================
 function renderLogin() {
   app.innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f9fafb;font-family:system-ui;direction:rtl;">
@@ -183,9 +189,6 @@ async function handleLogin() {
   } finally { loginBtn.disabled = false }
 }
 
-// ==========================================
-// 5. قاعدة البيانات (Dexie)
-// ==========================================
 async function saveMessage(role, content) {
   if (!['user', 'assistant'].includes(role) || typeof content !== 'string' || content.length > MAX_MESSAGE_LENGTH) return
   try {
@@ -206,9 +209,6 @@ async function loadMessages() {
   } catch { return [] }
 }
 
-// ==========================================
-// 6. واجهة الشات الرئيسية (Chat UI)
-// ==========================================
 async function renderChat() {
   app.innerHTML = `
     <div style="${style.container}">
@@ -226,7 +226,7 @@ async function renderChat() {
         </div>
       </header>
       <main id="chat-box" style="${style.chatBox}">
-        <div style="${style.aiBubble}">أهلاً بيك! أنا Rouks.</div>
+        <div style="${style.aiBubble}">أهلاً بيك! أنا Rouks. جرب تسألني عن كود برمجي أو أي حاجة عشان تشوف التنسيق الجديد.</div>
       </main>
       <div style="${style.inputArea}">
         <button id="clear-btn" style="${style.toolBtn}">🗑️</button>
@@ -252,10 +252,21 @@ async function renderChat() {
   let isBusy = false
   let chatHistory = [SYSTEM_MESSAGE]
 
+  // الدالة المحدثة لعرض الرسائل (تنسيق Markdown للـ AI، ونص عادي للمستخدم)
   const addMessageUI = (role, text) => {
     const bubble = document.createElement('div')
     bubble.style.cssText = role === 'user' ? style.userBubble : style.aiBubble
-    bubble.textContent = String(text)
+    
+    if (role === 'user') {
+      bubble.textContent = String(text) // رسائل المستخدم كنص عادي (آمن)
+    } else {
+      // رسائل الذكاء الاصطناعي: تحويل Markdown إلى HTML ثم تنقيته بـ DOMPurify
+      bubble.classList.add('markdown-content')
+      const rawHtml = marked.parse(String(text))
+      const cleanHtml = DOMPurify.sanitize(rawHtml) // حماية من هجمات XSS
+      bubble.innerHTML = cleanHtml
+    }
+    
     chatBox.appendChild(bubble)
     chatBox.scrollTop = chatBox.scrollHeight
   }
@@ -279,7 +290,6 @@ async function renderChat() {
     imageBtn.style.opacity = busy ? '0.6' : '1'
   }
 
-  // تحميل الرسائل القديمة
   const oldMsgs = await loadMessages()
   if (oldMsgs.length) {
     chatBox.replaceChildren()
@@ -298,7 +308,6 @@ async function renderChat() {
 
   logoutBtn.addEventListener('click', () => { if (!isBusy) renderLogin() })
 
-  // --- إرسال النصوص ---
   async function sendMessage() {
     if (isBusy) return
     const text = input.value.trim()
@@ -334,7 +343,6 @@ async function renderChat() {
     }
   }
 
-  // --- الإدخال الصوتي ---
   const Speech = window.SpeechRecognition || window.webkitSpeechRecognition
   if (Speech) {
     const rec = new Speech(); rec.lang = 'ar-SA'; rec.interimResults = false;
@@ -351,7 +359,6 @@ async function renderChat() {
     rec.onerror = resetMic; rec.onend = resetMic
   } else { voiceBtn.style.display = 'none' }
 
-  // --- توليد الصور ---
   imageBtn.addEventListener('click', async () => {
     if (isBusy) return
     const prompt = input.value.trim()
@@ -369,8 +376,6 @@ async function renderChat() {
       const b64 = data?.result?.image
 
       if (data?.success !== true || !b64) throw new Error('لم يتم استلام صورة صالحة')
-      
-      // حماية من الصور الضخمة جداً
       if (b64.length > 15_000_000) throw new Error('الصورة كبيرة جداً على الهاتف')
 
       const binary = atob(b64)
@@ -384,7 +389,6 @@ async function renderChat() {
       img.src = imgUrl; img.alt = 'صورة مولدة'; img.loading = 'lazy'
       img.style.cssText = 'display:block;width:100%;height:auto;border-radius:8px;'
       
-      // تنظيف الذاكرة بعد تحميل الصورة
       img.onload = () => URL.revokeObjectURL(imgUrl)
 
       bubble.appendChild(img); chatBox.appendChild(bubble); chatBox.scrollTop = chatBox.scrollHeight
@@ -402,12 +406,9 @@ async function renderChat() {
   })
 }
 
-// ==========================================
-// 7. نقطة البداية (Entry Point)
-// ==========================================
 try {
   if (localStorage.getItem('rouks_pin_hash')) renderLogin()
   else renderSetup()
 } catch {
   app.textContent = 'التطبيق يتطلب تفعيل التخزين المحلي.'
-    }
+}
